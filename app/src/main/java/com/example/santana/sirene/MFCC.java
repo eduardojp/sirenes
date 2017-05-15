@@ -36,98 +36,96 @@ public class MFCC {
 
     }
 
-    private double[][] computeMagnitude(double [] frame) {
-        double [] buffer = new double[2*FFT_LENGTH];
+    private double[][] computeMagnitude(double[] frame) {
+        double[] buffer = new double[2 * FFT_LENGTH];
         double[][] frequencySpectrum = new double[FFT_UNIQUE][1];
         for(int j = 0; j < nSamplesInFrame; j++) {
-            buffer[2*j] = frame[j];
-            buffer[2*j + 1] = 0;
+            buffer[2 * j] = frame[j];
+            buffer[2 * j + 1] = 0;
         }
 
         fft.complexForward(buffer);
 
         for(int n = 0; n < FFT_UNIQUE; n++) {
-            double a = buffer[2*n];
-            double b = buffer[2*n +1];
-            frequencySpectrum[n][0] = Math.sqrt(a*a + b*b);
+            double a = buffer[2 * n];
+            double b = buffer[2 * n + 1];
+            frequencySpectrum[n][0] = Math.sqrt(a * a + b * b);
         }
 
         return frequencySpectrum;
     }
 
-    private double[][] generateTriangularFilterBank(){
+    private double[][] generateTriangularFilterBank() {
         double fMin = 0;
         double fLow = frequencyRange[0];
         double fHigh = frequencyRange[1];
-        double fMax = 0.5*samplingRate;
+        double fMax = 0.5 * samplingRate;
         double[] fArray = new double[FFT_UNIQUE];
         double[][] filterBank = new double[nFilterBank][FFT_UNIQUE];
 
         //System.out.println("Frequency Array");
-        for (int j = 0; j < FFT_UNIQUE; j++){
-            fArray[j] = fMin + j*(fMax - fMin)/(FFT_UNIQUE - 1);
+        for(int j = 0; j < FFT_UNIQUE; j++) {
+            fArray[j] = fMin + j * (fMax - fMin) / (FFT_UNIQUE - 1);
             //System.out.println(fArray[j]);
         }
 
         double aCoeff = hz2mel(fLow);
-        double bCoeff = (hz2mel(fHigh) - hz2mel(fLow))/(nFilterBank+ 1);
+        double bCoeff = (hz2mel(fHigh) - hz2mel(fLow)) / (nFilterBank + 1);
         double[] cutoffArray = new double[nFilterBank + 2];
 
         //System.out.println("Cutoff Frequency");
-        for(int n = 0; n < nFilterBank + 2; n++){
-            cutoffArray[n] = mel2hz(aCoeff + n*bCoeff);
+        for(int n = 0; n < nFilterBank + 2; n++) {
+            cutoffArray[n] = mel2hz(aCoeff + n * bCoeff);
             //  System.out.println(cutoffArray[n]);
         }
 
-        for (int m = 0; m < nFilterBank; m ++){
-            for(int k = 0; k < FFT_UNIQUE; k ++){
-                if((fArray[k] >= cutoffArray[m]) && (fArray[k] <= cutoffArray[m+1]))
-                    filterBank[m][k] = (fArray[k] - cutoffArray[m])/(cutoffArray[m+1] - cutoffArray[m]);
-                if((fArray[k] >= cutoffArray[m+1]) && (fArray[k] <= cutoffArray[m+2]))
-                    filterBank[m][k] = (cutoffArray[m+2] - fArray[k])/(cutoffArray[m+2] - cutoffArray[m+1]);
+        for(int m = 0; m < nFilterBank; m++) {
+            for(int k = 0; k < FFT_UNIQUE; k++) {
+                if((fArray[k] >= cutoffArray[m]) && (fArray[k] <= cutoffArray[m + 1]))
+                    filterBank[m][k] = (fArray[k] - cutoffArray[m]) / (cutoffArray[m + 1] - cutoffArray[m]);
+                if((fArray[k] >= cutoffArray[m + 1]) && (fArray[k] <= cutoffArray[m + 2]))
+                    filterBank[m][k] = (cutoffArray[m + 2] - fArray[k]) / (cutoffArray[m + 2] - cutoffArray[m + 1]);
             }
         }
         return filterBank;
     }
 
-    private double[][] generateDCTMatrix(){
+    private double[][] generateDCTMatrix() {
         double[][] DCTMatrix = new double[nCepstralCoeff][nFilterBank];
 
-        double a = Math.sqrt(2.0/nFilterBank);
+        double a = Math.sqrt(2.0 / nFilterBank);
         System.out.println(a);
-        double b = Math.PI/nFilterBank;
+        double b = Math.PI / nFilterBank;
         System.out.println(b);
         for(int n = 0; n < nCepstralCoeff; n++)
             for(int m = 0; m < nFilterBank; m++)
-                DCTMatrix[n][m] = a*Math.cos(n*b*(m + 0.5));
+                DCTMatrix[n][m] = a * Math.cos(n * b * (m + 0.5));
 
         return DCTMatrix;
     }
 
-    private double[] generateLifterCoeff(){
+    private double[] generateLifterCoeff() {
         double[] lifterCoeff = new double[nCepstralCoeff];
-        double a = Math.PI/sineLifterParameter;
+        double a = Math.PI / sineLifterParameter;
         for(int n = 0; n < nCepstralCoeff; n++)
-            lifterCoeff[n] = 1 + 0.5*sineLifterParameter*Math.sin(a*n);
+            lifterCoeff[n] = 1 + 0.5 * sineLifterParameter * Math.sin(a * n);
         return lifterCoeff;
     }
 
-    private double hz2mel(double fHz){
+    private double hz2mel(double fHz) {
         double fMelArray;
-        fMelArray = 1127*Math.log(1 + fHz/700);
+        fMelArray = 1127 * Math.log(1 + fHz / 700);
 
         return fMelArray;
     }
 
-    private double  mel2hz(double fMel){
-        double fHz = 700*Math.exp(fMel/1127) - 700;
+    private double mel2hz(double fMel) {
+        double fHz = 700 * Math.exp(fMel / 1127) - 700;
         return fHz;
     }
 
-    public double[] extractFeature(double[] frame){
-
+    public double[] extractFeature(double[] frame) {
         double[][] spectrum = computeMagnitude(frame);
-
         double[][] FBE = Utils.mult(filterBank, spectrum);
 
         for(int n = 0; n < FBE.length; n++) {
@@ -139,8 +137,8 @@ public class MFCC {
         double[][] cepstralCoefficients = Utils.mult(dctMatrix, FBE);
 
         double[] MFCCs = new double[nCepstralCoeff];
-        for(int n = 0; n < nCepstralCoeff; n++){
-            MFCCs[n] = lifterCoeff[n]*cepstralCoefficients[n][0];
+        for(int n = 0; n < nCepstralCoeff; n++) {
+            MFCCs[n] = lifterCoeff[n] * cepstralCoefficients[n][0];
         }
 
         return MFCCs;

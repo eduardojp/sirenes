@@ -1,17 +1,23 @@
 package com.example.santana.sirene;
 
 import android.content.Context;
+import android.graphics.drawable.AnimationDrawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.os.AsyncTask;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Vibrator;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.Animation;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import android.Manifest;
@@ -20,17 +26,18 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.app.ActivityCompat;
 
 public class MainActivity extends Activity {
+    private static final String TAG = MainActivity.class.getSimpleName();
 
     private MainActivity context;
+    private RelativeLayout layout;
     private TextView returnedText;
+    private ImageView sirenImage;
     private ToggleButton toggleButton;
     private ProgressBar progressBar;
     private Intent recognizerIntent;
     private String LOG_TAG = "MainActivity";
 
-    private static final String TAG = MainActivity.class.getSimpleName();
-
-
+    private Vibrator vibrator;
 
     //Properties (AsyncTask)
     protected TextView _percentField;
@@ -48,10 +55,11 @@ public class MainActivity extends Activity {
     public static final int SAMPPERSEC = 44100; //samp per sec 8000, 11025, 22050 44100 or 48000
     public static final float TIMEINTERVAL = 0.47f;
     public static final float TIMESPAN = 10.0e-3f;
-    public static final float LAGSPAN = 0.25f*TIMESPAN;
+    public static final float LAGSPAN = 0.25f * TIMESPAN;
     private static String PERMISSIONTAG = "PermissionDemo";
     private static final int RECORD_REQUEST_CODE = 101;
 
+    private int count = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,25 +68,36 @@ public class MainActivity extends Activity {
 
         context = this;
 
-        int permission = ContextCompat.checkSelfPermission(this,
-                Manifest.permission.RECORD_AUDIO);
-
-        if (permission != PackageManager.PERMISSION_GRANTED) {
+        int permission = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO);
+        if(permission != PackageManager.PERMISSION_GRANTED) {
             Log.i(PERMISSIONTAG, "Permission to record denied");
             makeRequest();
         }
 
+        permission = ContextCompat.checkSelfPermission(this, Manifest.permission.VIBRATE);
+        if(permission != PackageManager.PERMISSION_GRANTED) {
+            Log.i(PERMISSIONTAG, "Permission to vibrate denied");
+            makeRequest();
+        }
+
+        layout = (RelativeLayout) findViewById(R.id.relativeLayout);
+        //TransitionDrawable transition = (TransitionDrawable) layout.getBackground();
+        //transition.startTransition(2000);
+
+        //AnimationDrawable animation = (AnimationDrawable) layout.getBackground();
+        //animation.start();
+
         progressBar = (ProgressBar) findViewById(R.id.progressBar1);
         toggleButton = (ToggleButton) findViewById(R.id.toggleButton1);
+        sirenImage = (ImageView) findViewById(R.id.imageView1);
 
         progressBar.setVisibility(View.INVISIBLE);
 
         toggleButton.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 
             @Override
-            public void onCheckedChanged(CompoundButton buttonView,
-                                         boolean isChecked) {
-                if (isChecked) {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked) {
                     progressBar.setVisibility(View.VISIBLE);
                     progressBar.setIndeterminate(true);
                     //speech.startListening(recognizerIntent);
@@ -91,23 +110,20 @@ public class MainActivity extends Activity {
         });
 
 
-        _percentField = ( TextView ) findViewById(R.id.textView1);
-
+        _percentField = (TextView) findViewById(R.id.textView1);
 
 
         buffersizebytes = AudioRecord.getMinBufferSize(SAMPPERSEC, channelConfiguration, audioEncoding); //4096 on ion
-        buffer = new short[Config.FRAMESPERDECISION*Config.SAMPLESPERFRAME];
+        buffer = new short[Config.FRAMESPERDECISION * Config.SAMPLESPERFRAME];
         //bufferDouble = new double[buffersizebytes];
 
         audioRecord = new AudioRecord(
-            android.media.MediaRecorder.AudioSource.MIC,SAMPPERSEC,channelConfiguration,audioEncoding,2*Config.FRAMESPERDECISION*441
+                android.media.MediaRecorder.AudioSource.MIC, SAMPPERSEC, channelConfiguration, audioEncoding, 2 * Config.FRAMESPERDECISION * 441
         ); //constructor
-
-
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
 
         _initTask = new InitTask();
-        _initTask.execute( this );
-
+        _initTask.execute(this);
     }
 
     protected void makeRequest() {
@@ -115,7 +131,6 @@ public class MainActivity extends Activity {
                 new String[]{Manifest.permission.RECORD_AUDIO},
                 RECORD_REQUEST_CODE);
     }
-
 
     @Override
     public void onResume() {
@@ -148,7 +163,7 @@ public class MainActivity extends Activity {
         // -- notice that the datatype of the first param in the class definition matches the param passed to this method
         // -- and that the datatype of the last param in the class definition matches the return type of this method
         @Override
-        protected String doInBackground( Context... params ) {
+        protected String doInBackground(Context... params) {
             //-- on every iteration
             //-- runs a while loop that causes the thread to sleep for 50 milliseconds
             //-- publishes the progress - calls the onProgressUpdate handler defined below
@@ -166,7 +181,7 @@ public class MainActivity extends Activity {
                 double[][] xmin = Utils.readMatrixFromXML(getResources().getStringArray(R.array.xmin), Config.NCEPSTRALCOEFFS, 1);
                 double[][] xmax = Utils.readMatrixFromXML(getResources().getStringArray(R.array.xmax), Config.NCEPSTRALCOEFFS, 1);
                 neuralNetwork = new Neural(inputWeights, layerWeights, bias1, bias2, xmin, xmax);
-            } catch (Exception e) {
+            } catch(Exception e) {
                 e.printStackTrace();
             }
 
@@ -174,21 +189,20 @@ public class MainActivity extends Activity {
             AudioProcessor audioProcessor = null;
             try {
                 audioProcessor = new AudioProcessor(TIMESPAN, Config.FRAMESPERDECISION, SAMPPERSEC, neuralNetwork);
-            } catch (Exception e) {
+            } catch(Exception e) {
                 e.printStackTrace();
             }
 
             //double[] inputBuffer = new double[Config.FRAMESPERDECISION*441];
-            short[] inputBuffer = new short[Config.FRAMESPERDECISION*Config.SAMPLESPERFRAME];
+            short[] inputBuffer = new short[Config.FRAMESPERDECISION * Config.SAMPLESPERFRAME];
             /*String[] inputList = getResources().getStringArray(R.array.input);
             for(int k = 0; k < 50*441; k ++)
                 inputBuffer[k] = Double.parseDouble(inputList[k]);
 
             int i = 0;*/
 
-            while( true )
-            {
-                try{
+            while(true) {
+                try {
 
                     /*for(int totalSamples = 0; totalSamples < Config.FRAMESPERDECISION*441; totalSamples += mSamplesRead) {
                         mSamplesRead = audioRecord.read(buffer, 0, buffersizebytes, AudioRecord.READ_BLOCKING);
@@ -196,7 +210,7 @@ public class MainActivity extends Activity {
                             inputBuffer[j + totalSamples] = buffer[j];
                         }
                     }*/
-                    mSamplesRead = audioRecord.read(buffer, 0, Config.FRAMESPERDECISION*Config.SAMPLESPERFRAME, AudioRecord.READ_BLOCKING);
+                    mSamplesRead = audioRecord.read(buffer, 0, Config.FRAMESPERDECISION * Config.SAMPLESPERFRAME, AudioRecord.READ_BLOCKING);
                     Log.d("mSamplesRead", "" + mSamplesRead);
 
                     /*for(int k = 0; k < buffer.length; k ++)
@@ -204,9 +218,10 @@ public class MainActivity extends Activity {
 
                     Boolean result = audioProcessor.processBuffer(buffer, mSamplesRead);
 
-                    if(result != null){
+                    if(result != null) {
                         int finalResult = result ? 1 : 0;
                         publishProgress(finalResult);
+                        count++;
                     }
                     //publishProgress(1);
 
@@ -215,7 +230,7 @@ public class MainActivity extends Activity {
                         publishProgress( amp );
                     }*/
 
-                } catch( Exception e ){
+                } catch(Exception e) {
                     String errorMsg = e.getMessage() + "\n";
                     for(StackTraceElement ste : e.getStackTrace()) {
                         errorMsg += ste.toString() + "\n";
@@ -229,8 +244,7 @@ public class MainActivity extends Activity {
 
         // -- gets called just before thread begins
         @Override
-        protected void onPreExecute()
-        {
+        protected void onPreExecute() {
             //Log.i( "makemachine", "onPreExecute()" );
             super.onPreExecute();
 
@@ -239,22 +253,56 @@ public class MainActivity extends Activity {
         // -- called from the publish progress
         // -- notice that the datatype of the second param gets passed to this method
         @Override
-        protected void onProgressUpdate(Integer... values)
-        {
+        protected void onProgressUpdate(Integer... values) {
             super.onProgressUpdate(values);
+
+            int result = values[0];
+
             //Log.i( "makemachine", "onProgressUpdate(): " +  String.valueOf( values[0] ) );
-            _percentField.setText( String.valueOf(values[0]) );
+            _percentField.setText(String.valueOf(result));
+
+
+
+
+            //DEBUG
+            _percentField.setText(String.valueOf(count));
+            if(count % 20 == 0) {
+                layout.setBackground(ContextCompat.getDrawable(getApplicationContext(), R.drawable.blue_background));
+                sirenImage.setImageDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.siren_off));
+                vibrator.cancel();
+            }
+            if((count+10) % 20 == 0) {
+                layout.setBackground(ContextCompat.getDrawable(getApplicationContext(), R.drawable.background_animation));
+                sirenImage.setImageDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.siren_on));
+
+                AnimationDrawable animation = (AnimationDrawable) layout.getBackground();
+                animation.start();
+                long[] pattern = {0, 500, 500};
+                vibrator.vibrate(pattern, 0);
+            }
+
+            /*if(result == 0) {
+                layout.setBackground(ContextCompat.getDrawable(getApplicationContext(), R.drawable.blue_background));
+                sirenImage.setImageDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.siren_off));
+                vibrator.cancel();
+            }
+            else {
+                layout.setBackground(ContextCompat.getDrawable(getApplicationContext(), R.drawable.background_animation));
+                sirenImage.setImageDrawable(ContextCompat.getDrawable(getApplicationContext(), R.drawable.siren_on));
+
+                AnimationDrawable animation = (AnimationDrawable) layout.getBackground();
+                animation.start();
+                long[] pattern = {0, 500, 500};
+                vibrator.vibrate(pattern, 0);
+            }*/
         }
 
         // -- called as soon as doInBackground method completes
         // -- notice that the third param gets passed to this method
         @Override
-        protected void onPostExecute( String result )
-        {
+        protected void onPostExecute(String result) {
             super.onPostExecute(result);
             //Log.i( "makemachine", "onPostExecute(): " + result );
         }
-
-
     }
 }

@@ -44,10 +44,11 @@ public class Neural {
     private double[][] processInput(double[][] input) {
         double[][] processedInput = new double[nMFCC][nFrames];
 
-        for(int jCol = 0; jCol < nFrames; jCol++)
+        for(int jCol = 0; jCol < nFrames; jCol++) {
             for(int iRow = 0; iRow < nMFCC; iRow++) {
-                processedInput[iRow][jCol] = (ymax - ymin)*(input[jCol][iRow] - xmin[iRow][0])/(xmax[iRow][0] - xmin[iRow][0]) + ymin;
+                processedInput[iRow][jCol] = (ymax - ymin) * (input[jCol][iRow] - xmin[iRow][0]) / (xmax[iRow][0] - xmin[iRow][0]) + ymin;
             }
+        }
         return processedInput;
     }
 
@@ -60,10 +61,11 @@ public class Neural {
 
         //System.out.println("tanh test:" + Math.tanh(-1.0676));
 
-        for(int k = 0; k < nFrames; k++)
+        for(int k = 0; k < nFrames; k++) {
             for(int j = 0; j < hiddenLayerSize; j++) {
                 hiddenLayerInput[j][k] = Math.tanh(transferFunctionInput[j][k] + bias1[j][0]);
             }
+        }
 
         //s2 = tansig(IW*s1 + b1);
         return hiddenLayerInput;
@@ -80,11 +82,11 @@ public class Neural {
         /*for(int k = 0; k < nFrames; k++)
             for(int j = 0; j < 2; j++)
                 output[j][k] = Math.tanh(transferFunctionInput[j][k] + bias2[j][0]);*/
-        for(int k = 0; k < nFrames; k++){
+        for(int k = 0; k < nFrames; k++) {
             double a = Math.exp(transferFunctionInput[0][k] + bias2[0][0]);
             double b = Math.exp(transferFunctionInput[1][k] + bias2[1][0]);
-            output[0][k] = a/(a + b);
-            output[1][k] = b/(a + b);
+            output[0][k] = a / (a + b);
+            output[1][k] = b / (a + b);
         }
 
 
@@ -96,7 +98,7 @@ public class Neural {
     }
 
 
-    public double[][] neuralDecision(double [][] MFCCs){
+    public double[][] neuralDecision(double[][] MFCCs) {
         double[][] processedInput = processInput(MFCCs);
 
         /*System.out.println("Processed Input Frame 0");

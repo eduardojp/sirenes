@@ -9,18 +9,18 @@ import java.util.Locale;
 import java.util.Scanner;
 
 public class Utils {
-    public static double[][] readMatrixFromXML(String[] List, int nRows, int nCols) throws Exception{
+    public static double[][] readMatrixFromXML(String[] List, int nRows, int nCols) throws Exception {
         double[][] hMatrix = new double[nRows][nCols];
-        for(int i = 0; i < nCols; i++){
-            for (int j = 0; j < nRows; j++)
-                hMatrix[j][i] = Double.parseDouble(List[i*nRows + j]);
+        for(int i = 0; i < nCols; i++) {
+            for(int j = 0; j < nRows; j++)
+                hMatrix[j][i] = Double.parseDouble(List[i * nRows + j]);
         }
         return hMatrix;
     }
 
     public static double[][] readMatrix(String fileName, int width, int height) throws Exception {
         double[][] hMatrix = new double[width][height];
-        Scanner scanner =  new Scanner(new File(fileName));
+        Scanner scanner = new Scanner(new File(fileName));
         scanner.useLocale(Locale.ENGLISH);
 
         for(int i = 0; i < width; i++) {
@@ -46,7 +46,7 @@ public class Utils {
 
         double[][] C = new double[aRows][bColumns];
         for(int i = 0; i < aRows; i++) {
-            for (int j = 0; j < bColumns; j++) {
+            for(int j = 0; j < bColumns; j++) {
                 C[i][j] = 0.00000;
             }
         }
